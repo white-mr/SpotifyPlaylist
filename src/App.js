@@ -80,7 +80,21 @@ function App() {
     };
   }, [accessToken]);
   
-
+  async function searchTrackOnSpotify(accessToken, title, artist) {
+    const query = encodeURIComponent(`${title} ${artist}`);
+    const url = `https://api.spotify.com/v1/search?q=${query}&type=track&limit=1`;
+  
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
+  
+    const data = await response.json();
+    const track = data.tracks?.items?.[0];
+    return track ? track.uri : null;
+  }
+  
   // 5. Create playlist via AI
   async function handleCreatePlaylistWithGPT() {
     if (!prompt.trim()) {
@@ -108,11 +122,21 @@ function App() {
           likedTracks: likedListString
         })
       });
-      const { playlistName, trackUris } = await resp.json();
+      
+      const { playlistName, tracks: trackList } = await resp.json();
 
       // 3. Create new Spotify playlist
       const playlistId = await createNewPlaylist(accessToken, playlistName);
       console.log("PlaylistID: " + playlistId);
+      console.log("trackList: " + trackList);
+      const trackUris = [];
+
+      for (const track of trackList) {
+        const uri = await searchTrackOnSpotify(accessToken, track.title, track.artist);
+        if (uri) {
+          trackUris.push(uri);
+        }
+      }
 
       // 4. Add tracks in batches
       for (let i = 0; i < trackUris.length; i += 100) {

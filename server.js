@@ -34,48 +34,63 @@ app.post('/api/pick-tracks', async (req, res) => {
     console.log('[Backend] Received userPrompt:', userPrompt);
     console.log('[Backend] Received likedTracks length:', likedTracks.length);
 
-    // Build messages that ask for a playlist name + 20–30 URIs
     const systemMessage = {
       role: 'system',
-      content:
-        'You are an expert music curator with encyclopedic knowledge of artists, genres, languages, and geographic origins. ' +
-        'Whenever you receive a user request plus a list of saved Spotify tracks (each line gives index, title, artists, and URI), do the following:\n' +
-        ' 1. Read the user’s request carefully. Any inclusion or exclusion rule (for example, “no Turkish songs” or “focus on upbeat English pop”) comes from the user’s own words.\n' +
-        ' 2. For each track in the provided list, use your knowledge (or publicly available metadata) to determine:\n' +
-        '     • The primary genre or mood of the song.\n' +
-        '     • The artist’s country of origin.\n' +
-        '     • The dominant language(s) of the lyrics.\n' +
-        ' 3. Select exactly 20–30 tracks that best match the user’s stated theme, obeying any explicit user instruction about language, origin, genre, etc. If a track’s metadata is not obvious from the title/artist, infer from what you know (e.g., a well‐known Turkish artist) or ideally “research” it mentally.\n' +
-        ' 4. Exclude any track only if the user specifically asked to exclude that origin/language/genre. Otherwise, do not add extra rules.\n' +
-        ' 5. Return exactly one JSON object (no extra commentary) with two keys:\n' +
-        '     • "playlistName": a concise, thematic title that reflects the user’s request.\n' +
-        '     • "trackUris": an array of exactly 20–30 Spotify URIs chosen from the provided list.\n' +
-        'Your output must be valid JSON only—nothing else.'
+      content: [
+        'You are a music expert and playlist curator with deep knowledge of artist origins and song languages.',
+        'Your job is to generate playlist suggestions based on the user\'s input and liked songs.',
+        '',
+        'Follow these rules strictly:',
+        '1. Carefully read the user\'s request. Any phrase like "no Turkish songs", "only English songs", "exclude sad songs", etc., is an explicit filter.',
+        '2. Exclusion filters must be strictly enforced — do NOT include any song that violates them.',
+        '3. From the user\'s liked songs, select 5–10 that match the theme **and do not violate exclusions**.',
+        '4. Add ~20 more new songs that match the theme **and obey all filters**.',
+        '5. For each song, return its title and artist in JSON.',
+        '6. Do NOT include any songs that are in a prohibited language or by excluded artists.',
+        '',
+        'Output format:',
+        '{',
+        '  "playlistName": "...",',
+        '  "tracks": [',
+        '    { "title": "Song Title", "artist": "Artist Name" },',
+        '    ...',
+        '  ]',
+        '}',
+        '',
+        'Return only valid JSON — no commentary, no markdown, no notes.'
+      ].join('\n')
     };
+    
     
     const userMessage = {
       role: 'user',
       content: [
-        'User request:',
-        `"${userPrompt}"`,
+        `User request: "${userPrompt}"`,
         '',
-        'List of saved songs (one per line, format: index. "Title" by Artist(s) — URI):',
+        'Here is a list of liked songs (format: index. "Title" by Artist(s) — URI):',
         likedTracks,
         '',
-        'Select 20–30 tracks that best fit the user’s request, interpreting any exclusions or inclusions (e.g. “no Turkish songs”) from the user’s own words. In order to do that you need to search and find the language of all the songs ',
-        'Respond with JSON exactly like this (no extra text):',
+        'Your task:',
+        '- Analyze the user’s intent from the prompt (e.g., mood, genre, language, etc.)',
+        '- Reuse 5–10 liked songs if they match the theme and user instructions',
+        '- Add ~20 more songs based on both the prompt and patterns in the liked list',
+        '- Ensure all exclusions are strictly followed (e.g., do NOT include Turkish songs if the user says "no Turkish")',
+        '',
+        'Return only this JSON (no explanation):',
         '{',
         '  "playlistName": "…",',
-        '  "trackUris": [',
-        '    "spotify:track:xxxx",',
-        '    "spotify:track:yyyy",',
-        '    …',
+        '  "tracks": [',
+        '    { "title": "…", "artist": "…" },',
+        '    ...',
         '  ]',
         '}'
       ].join('\n')
     };
+    
 
     console.log('[Backend] About to call OpenAI...');
+    console.log('[Backend] userMessage:\n' + userMessage.content);
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [systemMessage, userMessage],
@@ -86,47 +101,46 @@ app.post('/api/pick-tracks', async (req, res) => {
 
     const raw = completion.choices[0].message.content.trim();
     console.log('[Backend] OpenAI returned (raw):', raw);
+// Strip markdown fences if present
+const cleaned = raw
+  .replace(/^```(?:json)?\s*/i, '')
+  .replace(/```$/, '')
+  .trim();
 
-    // Strip markdown fences if present
-    const cleaned = raw
-      .replace(/^```(?:json)?\s*/i, '')
-      .replace(/```$/, '')
-      .trim();
-    // Before parsing, check if cleaned string looks complete (ends with '}' and closes the array)
-    if (!cleaned.endsWith('}') || cleaned.indexOf('"trackUris"') === -1) {
-      console.error('[Backend] Response seems truncated:', cleaned);
-      return res
-        .status(500)
-        .json({ error: 'GPT response was truncated. Try again with fewer tracks.' });
-    }
+// Before parsing, check if it ends correctly and contains the "tracks" field
+if (!cleaned.endsWith('}') || cleaned.indexOf('"tracks"') === -1) {
+  console.error('[Backend] Response seems truncated:', cleaned);
+  return res
+    .status(500)
+    .json({ error: 'GPT response was truncated. Try again with fewer tracks.' });
+}
 
-    let parsed;
-    try {
-      parsed = JSON.parse(cleaned);
-    } catch (parseErr) {
-      console.error('[Backend] JSON parse error:', cleaned);
-      return res
-        .status(500)
-        .json({ error: 'GPT did not return valid JSON.' });
-    }
+let parsed;
+try {
+  parsed = JSON.parse(cleaned);
+} catch (parseErr) {
+  console.error('[Backend] JSON parse error:', cleaned);
+  return res
+    .status(500)
+    .json({ error: 'GPT did not return valid JSON.' });
+}
 
-    const { playlistName, trackUris } = parsed;
-    if (
-      typeof playlistName !== 'string' ||
-      !Array.isArray(trackUris) ||
-      trackUris.length < 20 ||
-      trackUris.length > 30
-    ) {
-      console.error('[Backend] Unexpected JSON structure:', parsed);
-      return res
-        .status(500)
-        .json({ error: 'GPT returned an invalid playlist format.' });
-    }
+// ✅ Updated structure check for new format
+const { playlistName, tracks } = parsed;
+if (
+  typeof playlistName !== 'string' ||
+  !Array.isArray(tracks) 
+) {
+  console.error('[Backend] Unexpected JSON structure:', parsed);
+  return res
+    .status(500)
+    .json({ error: 'GPT returned an invalid playlist format.' });
+}
 
-    console.log('[Backend] Parsed playlistName:', playlistName);
-    console.log('[Backend] Parsed trackUris (count):', trackUris.length);
+console.log('[Backend] Parsed playlistName:', playlistName);
+console.log('[Backend] Parsed tracks (count):', tracks.length);
 
-    return res.json({ playlistName, trackUris });
+    return res.json({ playlistName, tracks });
   } catch (err) {
     console.error('[Backend] Unexpected error:', err);
     return res.status(500).json({ error: 'Internal server error.' });
