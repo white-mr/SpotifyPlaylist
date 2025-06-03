@@ -70,7 +70,7 @@ Before you begin, ensure you have the following installed:
    - Copy the **Client ID**.  
    - Under “Redirect URIs,” add:
      ```
-     http://localhost:3000/callback
+     https://spotifyplaylist.loca.lt/callback
      ```
    - Note the URI exactly (including `/callback`).
 
