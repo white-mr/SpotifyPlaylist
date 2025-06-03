@@ -3,7 +3,7 @@ import queryString from 'query-string';
 import { generateRandomString, generateCodeChallenge } from '../utils/pkce';
 
 const CLIENT_ID = '7db665c5141e42f3b227bb2fe42ded1f';
-const REDIRECT_URI = 'https://b6a2-78-185-149-43.ngrok-free.app/callback';
+const REDIRECT_URI = 'https://spotifyplaylist.loca.lt/callback';
 const AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
 const TOKEN_ENDPOINT = 'https://accounts.spotify.com/api/token';
 const SCOPES = [

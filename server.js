@@ -62,7 +62,7 @@ app.post('/api/pick-tracks', async (req, res) => {
         'List of saved songs (one per line, format: index. "Title" by Artist(s) — URI):',
         likedTracks,
         '',
-        'Select 20–30 tracks that best fit the user’s request, interpreting any exclusions or inclusions (e.g. “no Turkish songs”) from the user’s own words. ',
+        'Select 20–30 tracks that best fit the user’s request, interpreting any exclusions or inclusions (e.g. “no Turkish songs”) from the user’s own words. In order to do that you need to search and find the language of all the songs ',
         'Respond with JSON exactly like this (no extra text):',
         '{',
         '  "playlistName": "…",',
@@ -77,7 +77,7 @@ app.post('/api/pick-tracks', async (req, res) => {
 
     console.log('[Backend] About to call OpenAI...');
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',        // or "gpt-3.5-turbo"
+      model: "gpt-4o",
       messages: [systemMessage, userMessage],
       temperature: 0.7,
       max_tokens: 1200,            // ↑ Increase from 600 to 1200
