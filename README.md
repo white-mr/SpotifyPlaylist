@@ -10,10 +10,6 @@ A full-stack React & Node.js application that leverages OpenAI to generate theme
 2. [Prerequisites](#prerequisites)  
 3. [Installation](#installation)  
 4. [Configuration](#configuration)  
-5. [Running the Application](#running-the-application)  
-6. [Folder Structure](#folder-structure)  
-7. [Troubleshooting](#troubleshooting)  
-8. [License](#license)  
 
 ---
 
