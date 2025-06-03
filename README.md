@@ -39,7 +39,7 @@ Before you begin, ensure you have the following installed:
 - **Node.js & npm** (v16 or newer)  
 - **PowerShell** (v5 or newer) on Windows  
 - **Spotify Developer Account** (to obtain Client ID, set Redirect URI)  
-- **OpenAI API Key** (with sufficient quota for your usage)
+- **OpenAI API Key** (with sufficient quota for your usage (ask for .env.local))
 
 ---
 
@@ -52,20 +52,31 @@ Before you begin, ensure you have the following installed:
    ```
 
 2. **Install dependencies**  
-   - **Frontend (React)**  
      ```bash
      npm install
      ```
-   - **Backend (Express)**  
-     ```bash
-     cd playlist-backend
-     npm install
-     cd ..
-     ```
+
 
 3. **Verify that `start.bat` exists** in the project root—this batch file will launch everything for you.
 
+
 ---
+
+## Configuration
+
+1. **Spotify App Setup**  
+   - Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).  
+   - Create a new application.  
+   - Copy the **Client ID**.  
+   - Under “Redirect URIs,” add:
+     ```
+     http://localhost:3000/callback
+     ```
+   - Note the URI exactly (including `/callback`).
+
+2. **.env.local file**  
+   - Create .env.local file OPENAI_API_KEY=sk-proj-.........
+
 
 ## Running the Application
 
